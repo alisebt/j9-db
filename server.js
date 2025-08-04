@@ -8,65 +8,127 @@ mongoose.connect(MONGODB_URI)
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-const userStateSchema = new mongoose.Schema({
-  _id: { type: String, default: 'singleton' },
-  users: [{ email: String, name: String, role: String }],
-  currentUserEmail: String
+const userSchema = new mongoose.Schema({
+  email: { type: String, unique: true },
+  name: String,
+  role: String
 });
 
-const appStateSchema = new mongoose.Schema({
+const currentUserSchema = new mongoose.Schema({
   _id: { type: String, default: 'singleton' },
-  playlists: mongoose.Schema.Types.Mixed,
-  tags: mongoose.Schema.Types.Mixed,
-  allGlobalTags: [String],
+  email: String
+});
+
+const playlistSchema = new mongoose.Schema({
+  _id: String,
+  name: String,
+  owner: String,
+  shotIds: [String],
+  sharedWith: [String]
+});
+
+const tagSchema = new mongoose.Schema({
+  _id: String,
+  tags: [String]
+});
+
+const globalTagSchema = new mongoose.Schema({
+  _id: { type: String, default: 'singleton' },
+  tags: [String]
+});
+
+const appSettingsSchema = new mongoose.Schema({
+  _id: { type: String, default: 'singleton' },
   shotCovers: mongoose.Schema.Types.Mixed,
   activePlaylistId: String,
   isSidebarOpen: Boolean
 });
 
-const UserState = mongoose.model('UserState', userStateSchema);
-const AppState = mongoose.model('AppState', appStateSchema);
+const User = mongoose.model('User', userSchema);
+const CurrentUser = mongoose.model('CurrentUser', currentUserSchema);
+const Playlist = mongoose.model('Playlist', playlistSchema);
+const Tag = mongoose.model('Tag', tagSchema);
+const GlobalTag = mongoose.model('GlobalTag', globalTagSchema);
+const AppSettings = mongoose.model('AppSettings', appSettingsSchema);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/api/user-state', async (_req, res) => {
-  const state = await UserState.findById('singleton');
-  if (state) {
-    res.json({ users: state.users, currentUserEmail: state.currentUserEmail });
-  } else {
-    res.json({ users: [], currentUserEmail: null });
-  }
+app.get('/api/users', async (_req, res) => {
+  const users = await User.find({}).lean();
+  const current = await CurrentUser.findById('singleton').lean();
+  res.json({ users, currentUserEmail: current ? current.email : null });
 });
 
-app.post('/api/user-state', async (req, res) => {
+app.post('/api/users', async (req, res) => {
   const { users, currentUserEmail } = req.body;
-  await UserState.findByIdAndUpdate('singleton', { users, currentUserEmail }, { upsert: true });
+  await User.deleteMany({});
+  if (users?.length) await User.insertMany(users);
+  await CurrentUser.findByIdAndUpdate('singleton', { email: currentUserEmail }, { upsert: true });
   res.json({ status: 'ok' });
 });
 
-app.get('/api/app-state', async (_req, res) => {
-  const state = await AppState.findById('singleton');
-  if (state) {
+app.get('/api/playlists', async (_req, res) => {
+  const docs = await Playlist.find({}).lean();
+  const playlists = {};
+  docs.forEach(p => {
+    playlists[p._id] = { id: p._id, name: p.name, owner: p.owner, shotIds: p.shotIds, sharedWith: p.sharedWith };
+  });
+  res.json({ playlists });
+});
+
+app.post('/api/playlists', async (req, res) => {
+  const { playlists } = req.body;
+  await Playlist.deleteMany({});
+  const docs = Object.values(playlists || {}).map(p => ({
+    _id: p.id,
+    name: p.name,
+    owner: p.owner,
+    shotIds: p.shotIds,
+    sharedWith: p.sharedWith
+  }));
+  if (docs.length) await Playlist.insertMany(docs);
+  res.json({ status: 'ok' });
+});
+
+app.get('/api/tags', async (_req, res) => {
+  const docs = await Tag.find({}).lean();
+  const global = await GlobalTag.findById('singleton').lean();
+  const tags = {};
+  docs.forEach(t => {
+    tags[t._id] = t.tags;
+  });
+  res.json({ tags, allGlobalTags: global ? global.tags : [] });
+});
+
+app.post('/api/tags', async (req, res) => {
+  const { tags, allGlobalTags } = req.body;
+  await Tag.deleteMany({});
+  const docs = Object.entries(tags || {}).map(([shotId, tagArr]) => ({ _id: shotId, tags: tagArr }));
+  if (docs.length) await Tag.insertMany(docs);
+  await GlobalTag.findByIdAndUpdate('singleton', { tags: allGlobalTags || [] }, { upsert: true });
+  res.json({ status: 'ok' });
+});
+
+app.get('/api/settings', async (_req, res) => {
+  const settings = await AppSettings.findById('singleton').lean();
+  if (settings) {
     res.json({
-      playlists: state.playlists,
-      tags: state.tags,
-      allGlobalTags: state.allGlobalTags,
-      shotCovers: state.shotCovers,
-      activePlaylistId: state.activePlaylistId,
-      isSidebarOpen: state.isSidebarOpen
+      shotCovers: settings.shotCovers,
+      activePlaylistId: settings.activePlaylistId,
+      isSidebarOpen: settings.isSidebarOpen
     });
   } else {
-    res.json({ playlists: {}, tags: {}, allGlobalTags: [], shotCovers: {}, activePlaylistId: null, isSidebarOpen: true });
+    res.json({ shotCovers: {}, activePlaylistId: null, isSidebarOpen: true });
   }
 });
 
-app.post('/api/app-state', async (req, res) => {
-  const { playlists, tags, allGlobalTags, shotCovers, activePlaylistId, isSidebarOpen } = req.body;
-  await AppState.findByIdAndUpdate(
+app.post('/api/settings', async (req, res) => {
+  const { shotCovers, activePlaylistId, isSidebarOpen } = req.body;
+  await AppSettings.findByIdAndUpdate(
     'singleton',
-    { playlists, tags, allGlobalTags, shotCovers, activePlaylistId, isSidebarOpen },
+    { shotCovers, activePlaylistId, isSidebarOpen },
     { upsert: true }
   );
   res.json({ status: 'ok' });

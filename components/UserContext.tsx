@@ -32,7 +32,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch('/api/user-state');
+        const res = await fetch('/api/users');
         if (res.ok) {
           const data = await res.json();
           const loadedUsers: User[] = data.users && data.users.length ? data.users : initialUsers;
@@ -50,7 +50,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const save = async () => {
       try {
-        await fetch('/api/user-state', {
+        await fetch('/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ users, currentUserEmail: currentUser.email })
