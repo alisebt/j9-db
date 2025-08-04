@@ -1,0 +1,22 @@
+
+{
+  "short_name": "J9",
+  "name": "J9 - گالری رسانه پیشرفته",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#18181b",
+  "background_color": "#18181b",
+  "description": "یک برنامه وب پیشرفته برای مرور، جستجو و سازماندهی محتوای چندرسانه‌ای و پرامپت‌های متنی."
+}
