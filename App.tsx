@@ -67,27 +67,17 @@ const App: React.FC = () => {
     
   const { currentUser, users, setUsers, setCurrentUser } = useUser();
 
-  const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
-    try {
-        const item = window.localStorage.getItem(key);
-        return item ? JSON.parse(item) : defaultValue;
-    } catch (error) {
-        console.error(`Error reading from localStorage key “${key}”:`, error);
-        return defaultValue;
-    }
-  };
-
   const [allShots, setAllShots] = useState<Shot[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
 
   const [selectedShot, setSelectedShot] = useState<Shot | null>(null);
   
-  const [playlists, setPlaylists] = useState<Playlists>(() => loadFromStorage('j9_playlists_v3', {}));
-  const [tags, setTags] = useState<Tags>(() => loadFromStorage('j9_tags_v2', {}));
-  const [allGlobalTags, setAllGlobalTags] = useState<string[]>(() => loadFromStorage('j9_all_tags_v2', []));
-  const [shotCovers, setShotCovers] = useState<ShotCovers>(() => loadFromStorage('j9_shotCovers_v2', {}));
-  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(() => loadFromStorage('j9_activePlaylistId', null));
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(() => loadFromStorage('j9_isSidebarOpen', true));
+  const [playlists, setPlaylists] = useState<Playlists>({});
+  const [tags, setTags] = useState<Tags>({});
+  const [allGlobalTags, setAllGlobalTags] = useState<string[]>([]);
+  const [shotCovers, setShotCovers] = useState<ShotCovers>({});
+  const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
@@ -113,18 +103,39 @@ const App: React.FC = () => {
   const [gallerySize, setGallerySize] = useState<'sm' | 'md' | 'lg'>('md');
   const renameInputRef = useRef<HTMLInputElement>(null);
 
-  // Effect for saving state to localStorage
   useEffect(() => {
-    try {
-        window.localStorage.setItem('j9_playlists_v3', JSON.stringify(playlists));
-        window.localStorage.setItem('j9_tags_v2', JSON.stringify(tags));
-        window.localStorage.setItem('j9_all_tags_v2', JSON.stringify(allGlobalTags));
-        window.localStorage.setItem('j9_shotCovers_v2', JSON.stringify(shotCovers));
-        window.localStorage.setItem('j9_activePlaylistId', JSON.stringify(activePlaylistId));
-        window.localStorage.setItem('j9_isSidebarOpen', JSON.stringify(isSidebarOpen));
-    } catch (error) {
-        console.error("Failed to save state to localStorage:", error);
-    }
+    const load = async () => {
+      try {
+        const res = await fetch('/api/app-state');
+        if (res.ok) {
+          const data = await res.json();
+          setPlaylists(data.playlists || {});
+          setTags(data.tags || {});
+          setAllGlobalTags(data.allGlobalTags || []);
+          setShotCovers(data.shotCovers || {});
+          setActivePlaylistId(data.activePlaylistId || null);
+          setIsSidebarOpen(data.isSidebarOpen ?? true);
+        }
+      } catch (err) {
+        console.error('Failed to load app state:', err);
+      }
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
+    const save = async () => {
+      try {
+        await fetch('/api/app-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playlists, tags, allGlobalTags, shotCovers, activePlaylistId, isSidebarOpen })
+        });
+      } catch (err) {
+        console.error('Failed to save app state:', err);
+      }
+    };
+    save();
   }, [playlists, tags, allGlobalTags, shotCovers, activePlaylistId, isSidebarOpen]);
   
   useEffect(() => {
@@ -162,7 +173,7 @@ const App: React.FC = () => {
           groupedFiles.get(key)!.files.push(file);
       }
 
-      const savedCovers = loadFromStorage<ShotCovers>('j9_shotCovers_v2', {});
+      const savedCovers = shotCovers;
       const shotPromises = Array.from(groupedFiles.entries()).map(async ([id, group]): Promise<Shot | null> => {
         const { sourceFolder, files } = group;
         const pathWithinSource = id.replace(`${sourceFolder}/`, '');
@@ -218,7 +229,7 @@ const App: React.FC = () => {
 
       const loadedShots = (await Promise.all(shotPromises)).filter((s): s is Shot => s !== null);
       return loadedShots;
-  }, []);
+  }, [shotCovers]);
 
   const handleFoldersAdded = useCallback(async (files: File[]) => {
       if (!files || files.length === 0) return;
