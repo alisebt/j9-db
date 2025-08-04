@@ -26,19 +26,40 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [users, setUsers] = useState<User[]>(() => {
-    const savedUsers = window.localStorage.getItem('j9_users');
-    return savedUsers ? JSON.parse(savedUsers) : initialUsers;
-  });
-
-  const [currentUser, setCurrentUser] = useState<User>(() => {
-      const savedUserEmail = window.localStorage.getItem('j9_currentUserEmail');
-      const allUsers = users; // Use the just-loaded users state
-      return allUsers.find(u => u.email === savedUserEmail) || allUsers[0];
-  });
+  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]);
 
   useEffect(() => {
-    window.localStorage.setItem('j9_users', JSON.stringify(users));
+    const load = async () => {
+      try {
+        const res = await fetch('/api/user-state');
+        if (res.ok) {
+          const data = await res.json();
+          const loadedUsers: User[] = data.users && data.users.length ? data.users : initialUsers;
+          setUsers(loadedUsers);
+          const found = loadedUsers.find(u => u.email === data.currentUserEmail);
+          setCurrentUser(found || loadedUsers[0]);
+        }
+      } catch (err) {
+        console.error('Failed to load user state:', err);
+      }
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
+    const save = async () => {
+      try {
+        await fetch('/api/user-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ users, currentUserEmail: currentUser.email })
+        });
+      } catch (err) {
+        console.error('Failed to save user state:', err);
+      }
+    };
+    save();
     // Ensure current user is still valid
     if (!users.find(u => u.email === currentUser.email)) {
       setCurrentUser(users[0] || initialUsers[0]);
@@ -47,7 +68,6 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const handleSetCurrentUser = (user: User) => {
     setCurrentUser(user);
-    window.localStorage.setItem('j9_currentUserEmail', user.email);
   }
 
   const addUser = (user: User) => {
