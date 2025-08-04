@@ -106,18 +106,28 @@ const App: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch('/api/app-state');
-        if (res.ok) {
-          const data = await res.json();
+        const [plistRes, tagRes, settingsRes] = await Promise.all([
+          fetch('/api/playlists'),
+          fetch('/api/tags'),
+          fetch('/api/settings')
+        ]);
+        if (plistRes.ok) {
+          const data = await plistRes.json();
           setPlaylists(data.playlists || {});
+        }
+        if (tagRes.ok) {
+          const data = await tagRes.json();
           setTags(data.tags || {});
           setAllGlobalTags(data.allGlobalTags || []);
+        }
+        if (settingsRes.ok) {
+          const data = await settingsRes.json();
           setShotCovers(data.shotCovers || {});
           setActivePlaylistId(data.activePlaylistId || null);
           setIsSidebarOpen(data.isSidebarOpen ?? true);
         }
       } catch (err) {
-        console.error('Failed to load app state:', err);
+        console.error('Failed to load state:', err);
       }
     };
     load();
@@ -126,17 +136,47 @@ const App: React.FC = () => {
   useEffect(() => {
     const save = async () => {
       try {
-        await fetch('/api/app-state', {
+        await fetch('/api/playlists', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ playlists, tags, allGlobalTags, shotCovers, activePlaylistId, isSidebarOpen })
+          body: JSON.stringify({ playlists })
         });
       } catch (err) {
-        console.error('Failed to save app state:', err);
+        console.error('Failed to save playlists:', err);
       }
     };
     save();
-  }, [playlists, tags, allGlobalTags, shotCovers, activePlaylistId, isSidebarOpen]);
+  }, [playlists]);
+
+  useEffect(() => {
+    const save = async () => {
+      try {
+        await fetch('/api/tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tags, allGlobalTags })
+        });
+      } catch (err) {
+        console.error('Failed to save tags:', err);
+      }
+    };
+    save();
+  }, [tags, allGlobalTags]);
+
+  useEffect(() => {
+    const save = async () => {
+      try {
+        await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shotCovers, activePlaylistId, isSidebarOpen })
+        });
+      } catch (err) {
+        console.error('Failed to save settings:', err);
+      }
+    };
+    save();
+  }, [shotCovers, activePlaylistId, isSidebarOpen]);
   
   useEffect(() => {
     if (renamingPlaylist && renameInputRef.current) {
