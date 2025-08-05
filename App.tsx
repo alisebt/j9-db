@@ -21,6 +21,8 @@ declare module 'react' {
   }
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+
 export type PromptFile = { name: string; content: string; type: 'json' | 'text' | 'doc' | 'docx' | 'yaml' | 'html' | 'fountain'; };
 export type MediaFile = { name: string; url: string; };
 
@@ -107,9 +109,9 @@ const App: React.FC = () => {
     const load = async () => {
       try {
         const [plistRes, tagRes, settingsRes] = await Promise.all([
-          fetch('/api/playlists'),
-          fetch('/api/tags'),
-          fetch('/api/settings')
+          fetch(`${API_BASE_URL}/api/playlists`),
+          fetch(`${API_BASE_URL}/api/tags`),
+          fetch(`${API_BASE_URL}/api/settings`)
         ]);
         if (plistRes.ok) {
           const data = await plistRes.json();
@@ -136,7 +138,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const save = async () => {
       try {
-        await fetch('/api/playlists', {
+        await fetch(`${API_BASE_URL}/api/playlists`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ playlists })
@@ -151,7 +153,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const save = async () => {
       try {
-        await fetch('/api/tags', {
+        await fetch(`${API_BASE_URL}/api/tags`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tags, allGlobalTags })
@@ -166,7 +168,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const save = async () => {
       try {
-        await fetch('/api/settings', {
+        await fetch(`${API_BASE_URL}/api/settings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ shotCovers, activePlaylistId, isSidebarOpen })
