@@ -55,6 +55,7 @@ export type AppBackup = {
   allGlobalTags: string[];
   shotCovers: ShotCovers;
   users: ReturnType<typeof useUser>['users'];
+  directories: string[];
 };
 
 export type AdvancedFilterState = {
@@ -70,6 +71,7 @@ const App: React.FC = () => {
   const { currentUser, users, setUsers, setCurrentUser } = useUser();
 
   const [allShots, setAllShots] = useState<Shot[]>([]);
+  const [sourceFolders, setSourceFolders] = useState<string[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
 
   const [selectedShot, setSelectedShot] = useState<Shot | null>(null);
@@ -109,10 +111,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const [plistRes, tagRes, settingsRes] = await Promise.all([
+        const [plistRes, tagRes, settingsRes, dirRes] = await Promise.all([
           fetch(`${API_BASE_URL}/api/playlists`),
           fetch(`${API_BASE_URL}/api/tags`),
-          fetch(`${API_BASE_URL}/api/settings`)
+          fetch(`${API_BASE_URL}/api/settings`),
+          fetch(`${API_BASE_URL}/api/directories`)
         ]);
         if (plistRes.ok) {
           const data = await plistRes.json();
@@ -128,6 +131,10 @@ const App: React.FC = () => {
           setShotCovers(data.shotCovers || {});
           setActivePlaylistId(data.activePlaylistId || null);
           setIsSidebarOpen(data.isSidebarOpen ?? true);
+        }
+        if (dirRes.ok) {
+          const data = await dirRes.json();
+          setSourceFolders((data.directories || []).sort());
         }
       } catch (err) {
         console.error('Failed to load state:', err);
@@ -185,6 +192,22 @@ const App: React.FC = () => {
     };
     save();
   }, [shotCovers, activePlaylistId, isSidebarOpen, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    const save = async () => {
+      try {
+        await fetch(`${API_BASE_URL}/api/directories`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ directories: sourceFolders })
+        });
+      } catch (err) {
+        console.error('Failed to save directories:', err);
+      }
+    };
+    save();
+  }, [sourceFolders, isLoaded]);
   
   useEffect(() => {
     if (renamingPlaylist && renameInputRef.current) {
@@ -197,9 +220,6 @@ const App: React.FC = () => {
     document.title = activeFolder ? `${activeFolder} - J9` : 'J9';
   }, [activeFolder]);
 
-  const sourceFolders = useMemo(() => {
-    return [...new Set(allShots.map(s => s.folderId))].sort();
-  }, [allShots]);
 
   const processFiles = useCallback(async (files: File[]): Promise<Shot[]> => {
       const groupedFiles: Map<string, { sourceFolder: string; files: File[] }> = new Map();
@@ -300,6 +320,7 @@ const App: React.FC = () => {
       try {
           const newShots = await processFiles(files);
           setAllShots(prev => [...prev, ...newShots].sort((a, b) => a.id.localeCompare(b.id)));
+          setSourceFolders(prev => [...prev, sourceFolderName].sort());
       } catch (err) {
           setError('خطا در پردازش فایل‌های جدید.');
           console.error(err);
@@ -311,6 +332,7 @@ const App: React.FC = () => {
   const handleFolderRemoved = useCallback((folderNameToRemove: string) => {
       if (!window.confirm(`آیا از حذف پوشه «${folderNameToRemove}» از این جلسه مطمئن هستید؟`)) return;
       setAllShots(prev => prev.filter(shot => shot.folderId !== folderNameToRemove));
+      setSourceFolders(prev => prev.filter(f => f !== folderNameToRemove));
       if (activeFolder === folderNameToRemove) {
         setActiveFolder(null);
       }
@@ -636,6 +658,7 @@ const App: React.FC = () => {
       allGlobalTags,
       shotCovers,
       users,
+      directories: sourceFolders,
     };
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -655,6 +678,7 @@ const App: React.FC = () => {
     setAllGlobalTags(backup.allGlobalTags || []);
     setShotCovers(backup.shotCovers || {});
     setUsers(backup.users || []); // Assuming UserProvider's setUsers updates local state and context
+    setSourceFolders(backup.directories || []);
     setSettingsModalOpen(false);
     alert("تنظیمات با موفقیت بازیابی شد. صفحه مجددا بارگذاری می شود.");
     window.location.reload();
