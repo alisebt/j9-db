@@ -129,9 +129,9 @@ const SourceFoldersTab: React.FC<{
                     />
                 </div>
             </div>
-             <div className="p-4 bg-yellow-900/30 rounded-lg">
-                <p className="text-yellow-300 text-sm">
-                    <strong>توجه:</strong> به دلیل محدودیت‌های محیط اجرا، لیست پوشه‌های مبدا به صورت دائمی ذخیره نمی‌شود و با هر بار بستن و باز کردن برنامه باید مجددا انتخاب شوند.
+             <div className="p-4 bg-green-900/30 rounded-lg">
+                <p className="text-green-300 text-sm">
+                    پوشه‌های مبدا در پایگاه داده ذخیره می‌شوند و پس از باز کردن دوباره برنامه نیز در دسترس هستند.
                 </p>
             </div>
         </div>

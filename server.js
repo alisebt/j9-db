@@ -38,6 +38,10 @@ const globalTagSchema = new mongoose.Schema({
   tags: [String]
 });
 
+const directorySchema = new mongoose.Schema({
+  _id: String
+});
+
 const appSettingsSchema = new mongoose.Schema({
   _id: { type: String, default: 'singleton' },
   shotCovers: mongoose.Schema.Types.Mixed,
@@ -51,6 +55,7 @@ const Playlist = mongoose.model('Playlist', playlistSchema);
 const Tag = mongoose.model('Tag', tagSchema);
 const GlobalTag = mongoose.model('GlobalTag', globalTagSchema);
 const AppSettings = mongoose.model('AppSettings', appSettingsSchema);
+const Directory = mongoose.model('Directory', directorySchema);
 
 const app = express();
 app.use(cors());
@@ -109,6 +114,19 @@ app.post('/api/tags', async (req, res) => {
   const docs = Object.entries(tags || {}).map(([shotId, tagArr]) => ({ _id: shotId, tags: tagArr }));
   if (docs.length) await Tag.insertMany(docs);
   await GlobalTag.findByIdAndUpdate('singleton', { tags: allGlobalTags || [] }, { upsert: true });
+  res.json({ status: 'ok' });
+});
+
+app.get('/api/directories', async (_req, res) => {
+  const docs = await Directory.find({}).lean();
+  res.json({ directories: docs.map(d => d._id) });
+});
+
+app.post('/api/directories', async (req, res) => {
+  const { directories } = req.body;
+  await Directory.deleteMany({});
+  const docs = (directories || []).map((name) => ({ _id: name }));
+  if (docs.length) await Directory.insertMany(docs);
   res.json({ status: 'ok' });
 });
 
