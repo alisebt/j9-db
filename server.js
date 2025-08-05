@@ -2,8 +2,9 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 
-const MONGODB_URI = 'mongodb://127.0.0.1:27017/j9';
-//const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/j9';
+// Allow the MongoDB connection string to be configured via environment
+// variables when running in different environments (e.g. Docker).
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/j9';
 
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('MongoDB connected'))
