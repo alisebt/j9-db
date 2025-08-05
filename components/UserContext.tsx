@@ -30,6 +30,7 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -44,12 +45,15 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       } catch (err) {
         console.error('Failed to load user state:', err);
+      } finally {
+        setIsLoaded(true);
       }
     };
     load();
   }, []);
 
   useEffect(() => {
+    if (!isLoaded) return;
     const save = async () => {
       try {
         await fetch(`${API_BASE_URL}/api/users`, {
@@ -66,7 +70,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!users.find(u => u.email === currentUser.email)) {
       setCurrentUser(users[0] || initialUsers[0]);
     }
-  }, [users, currentUser.email]);
+  }, [users, currentUser.email, isLoaded]);
 
   const handleSetCurrentUser = (user: User) => {
     setCurrentUser(user);

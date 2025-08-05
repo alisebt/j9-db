@@ -80,6 +80,7 @@ const App: React.FC = () => {
   const [shotCovers, setShotCovers] = useState<ShotCovers>({});
   const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
@@ -130,12 +131,15 @@ const App: React.FC = () => {
         }
       } catch (err) {
         console.error('Failed to load state:', err);
+      } finally {
+        setIsLoaded(true);
       }
     };
     load();
   }, []);
 
   useEffect(() => {
+    if (!isLoaded) return;
     const save = async () => {
       try {
         await fetch(`${API_BASE_URL}/api/playlists`, {
@@ -148,9 +152,10 @@ const App: React.FC = () => {
       }
     };
     save();
-  }, [playlists]);
+  }, [playlists, isLoaded]);
 
   useEffect(() => {
+    if (!isLoaded) return;
     const save = async () => {
       try {
         await fetch(`${API_BASE_URL}/api/tags`, {
@@ -163,9 +168,10 @@ const App: React.FC = () => {
       }
     };
     save();
-  }, [tags, allGlobalTags]);
+  }, [tags, allGlobalTags, isLoaded]);
 
   useEffect(() => {
+    if (!isLoaded) return;
     const save = async () => {
       try {
         await fetch(`${API_BASE_URL}/api/settings`, {
@@ -178,7 +184,7 @@ const App: React.FC = () => {
       }
     };
     save();
-  }, [shotCovers, activePlaylistId, isSidebarOpen]);
+  }, [shotCovers, activePlaylistId, isSidebarOpen, isLoaded]);
   
   useEffect(() => {
     if (renamingPlaylist && renameInputRef.current) {
